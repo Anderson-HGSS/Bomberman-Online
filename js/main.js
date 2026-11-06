@@ -19,6 +19,8 @@ const statusLobby = document.getElementById("statusLobby");
 const contadorJogadores = document.getElementById("contadorJogadores");
 const listaJogadores = document.getElementById("listaJogadores");
 
+const btnIniciar = document.getElementById("iniciarPartida");
+
 //canal de comunicação da sala
 let canalSala = null;
 
@@ -56,6 +58,9 @@ btnCriar.addEventListener("click", async function () {
 
     try {
         const codigo = gerarCodigoSala();
+
+        const usuario = await garantirUsuarioAnonimo();
+        console.log("Identidade do jogador:", usuario.id);
 
         const { data, error } = await supabaseClient.rpc(
             "criar_sala",
@@ -118,6 +123,10 @@ btnEntrar.addEventListener("click", async function () {
     exibirMensagem("Procurando sala...", mensagemEntrar);
 
     try {
+        
+        const usuario = await garantirUsuarioAnonimo();
+        console.log("Identidade do jogador:", usuario.id);
+
         const { data, error } = await supabaseClient.rpc(
             "entrar_sala",
             {
@@ -183,6 +192,13 @@ function atualizarListaJogadores() {
     listaJogadores.replaceChildren();
 
     contadorJogadores.textContent = jogadores.length;
+    btnIniciar.disabled = jogadores.length < 2;
+
+    if (jogadores.length < 2) {
+        statusLobby.textContent = "Aguardando pelo menos 2 jogadores...";
+    } else {
+        statusLobby.textContent = "Jogadores conectados! A partida pode começar.";
+    }
 
     jogadores.forEach(function (jogador) {
         const item = document.createElement("li");
@@ -236,7 +252,7 @@ async function conectarAoLobby(codigo, nickname, isHost) {
                     console.log("Código:", codigo);
                     console.log("ID da sala:", salaAtualId);
                     console.log("É anfitrião?", isHost);
-                    
+
                     //Informa que o jogador está online
                     const resultado = await canalSala.track({
                         nickname: nickname,
@@ -252,6 +268,7 @@ async function conectarAoLobby(codigo, nickname, isHost) {
                     statusLobby.textContent = "Aguardando outros jogadores...";
 
                     areaLobby.hidden = false;
+                    btnIniciar.hidden = !isHost;
 
                     atualizarListaJogadores();
 
