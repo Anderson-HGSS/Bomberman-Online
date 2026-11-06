@@ -26,14 +26,14 @@ let salaAtualId = null;
 let jogadorAtualId = null;
 let souAnfitriao = false;
 
-function exibirMensagem(msg, elemento){
+function exibirMensagem(msg, elemento) {
     elemento.textContent = msg;
 }
 
-function gerarCodigoSala(){
+function gerarCodigoSala() {
     let codigo = "";
 
-    for(let i=0; i < 5; i++){
+    for (let i = 0; i < 5; i++) {
         let indiceCaractere = Math.floor(Math.random() * digitosCodigo.length);
         codigo += digitosCodigo[indiceCaractere];
     }
@@ -43,7 +43,7 @@ function gerarCodigoSala(){
 
 btnCriar.addEventListener("click", async function () {
     const nickname = campoNome.value.trim();
-    if(nickname === ""){
+    if (nickname === "") {
         exibirMensagem("Insira um nome antes de criar uma sala!", mensagemCriar);
         return;
     }
@@ -54,10 +54,10 @@ btnCriar.addEventListener("click", async function () {
 
     exibirMensagem("Criando sala...", mensagemCriar);
 
-    try{
+    try {
         const codigo = gerarCodigoSala();
 
-        const {data, error} = await supabaseClient.rpc(
+        const { data, error } = await supabaseClient.rpc(
             "criar_sala",
             {
                 p_codigo: codigo,
@@ -66,13 +66,13 @@ btnCriar.addEventListener("click", async function () {
             }
         );
 
-        if(error){
+        if (error) {
             throw error;
         }
 
         const sala = data?.[0];
 
-        if(!sala){
+        if (!sala) {
             throw new Error("Nenhum dado de sala foi retornado.");
         }
 
@@ -80,35 +80,35 @@ btnCriar.addEventListener("click", async function () {
 
         //Aqui é feita a conexão ao lobby como anfitrião
         souAnfitriao = true;
-        await conectarAoLobby(sala.codigo, nickname);
+        await conectarAoLobby(sala.codigo, nickname, true);
 
         exibirMensagem("Sala Criada com sucesso! Compartilhe esse código com seus amigos:", mensagemCriar);
         codigoGerado.textContent = sala.codigo;
 
         console.log("Sala criada:", sala);
-    } catch(error){
+    } catch (error) {
         console.error("Erro ao criar a sala:", error);
 
         exibirMensagem("não foi possível criar a sala. Verifique o console.", mensagemCriar);
-    } finally{
+    } finally {
         btnCriar.disabled = false;
     }
 
 });
 
-btnEntrar.addEventListener("click", async function(){
+btnEntrar.addEventListener("click", async function () {
     let nickname = campoNome.value.trim();
     let codigo = campoCodigo.value.toUpperCase().replaceAll(" ", "");
 
-    if(nickname === ""){
+    if (nickname === "") {
         exibirMensagem("Digite seu nome antes de entrar em uma sala!", mensagemEntrar);
         return;
     }
-    else if(codigo === ""){
+    else if (codigo === "") {
         exibirMensagem("Digite o código da sala para entrar!", mensagemEntrar);
         return;
     }
-    else if(codigo.length !== 5){
+    else if (codigo.length !== 5) {
         exibirMensagem("O código deve conter 5 caracteres!", mensagemEntrar);
         return;
     }
@@ -117,8 +117,8 @@ btnEntrar.addEventListener("click", async function(){
 
     exibirMensagem("Procurando sala...", mensagemEntrar);
 
-    try{
-        const {data, error} = await supabaseClient.rpc(
+    try {
+        const { data, error } = await supabaseClient.rpc(
             "entrar_sala",
             {
                 p_codigo: codigo,
@@ -126,28 +126,33 @@ btnEntrar.addEventListener("click", async function(){
             }
         );
 
-        if(error){
-            throw(error);
+        if (error) {
+            throw (error);
         }
 
-        
+
         const jogador = data?.[0];
 
-        if(!jogador){
+        if (!jogador) {
             throw new Error("Nenhum jogador foi retornado.");
         }
 
         salaAtualId = jogador.sala_id;
         jogadorAtualId = jogador.jogador_id;
-        souAnfitriao = jogador.is_host;
-    
-        await conectarAoLobby(jogador.codigo, nickname);
+        const isHost = jogador.is_host === true;
+
+        souAnfitriao = isHost;
+
+        console.log("Dados recebidos do Supabase:", jogador);
+        console.log("É anfitrião?", isHost);
+
+        await conectarAoLobby(jogador.codigo, nickname, isHost);
 
         exibirMensagem(`Você entrou na sala ${jogador.codigo} com sucesso!`, mensagemEntrar);
 
         console.log("Jogador concetado a sala:", jogador)
 
-    } catch(error){
+    } catch (error) {
         console.error("Erro ao entrar na sala:", error);
 
         const errosConhecidos = [
@@ -164,12 +169,12 @@ btnEntrar.addEventListener("click", async function(){
         );
 
         exibirMensagem(erroConhecido || "Não foi possível entrar na sala. Verifique o console.", mensagemEntrar);
-    } finally{
+    } finally {
         btnEntrar.disabled = false;
-    }    
+    }
 });
 
-function atualizarListaJogadores(){
+function atualizarListaJogadores() {
     //presenceState retorna os dados dos clientes conectados no canal
     const estado = canalSala.presenceState();
     //A função flat transforma uma lista de listas emu
@@ -179,10 +184,10 @@ function atualizarListaJogadores(){
 
     contadorJogadores.textContent = jogadores.length;
 
-    jogadores.forEach(function(jogador){
+    jogadores.forEach(function (jogador) {
         const item = document.createElement("li");
 
-        let identificacao = jogador.is_host? " (Anfitrião)": "";
+        let identificacao = jogador.is_host ? " (Anfitrião)" : "";
 
         item.textContent = jogador.nickname + identificacao;
 
@@ -190,48 +195,55 @@ function atualizarListaJogadores(){
     });
 }
 
-async function conectarAoLobby(codigo, nickname) {
-    
+async function conectarAoLobby(codigo, nickname, isHost) {
+
     //Caso já esteja conectado ao um canal, aqui a gente remove este canal para poder colocar o novo
-    if(canalSala){
+    if (canalSala) {
         await supabaseClient.removeChannel(canalSala);
         canalSala = null;
     }
 
     canalSala = supabaseClient.channel(
         `sala:${salaAtualId}`,
-        {config: {private: false}}
+        { config: { private: false } }
     );
 
     canalSala.on(
-        "presence", {event: "sync"},
-        function(){
+        "presence", { event: "sync" },
+        function () {
             atualizarListaJogadores();
         }
     );
 
-    return new Promise(function(resolve, reject){
+    return new Promise(function (resolve, reject) {
         let processando = false;
 
-        canalSala.subscribe(async function(status, err) {
+        canalSala.subscribe(async function (status, err) {
 
             console.log("Status Realtime:", status);
 
-            if(err){
+            if (err) {
                 console.error("Erro Realtime:", err);
             }
-            
-            if(status === "SUBSCRIBED" && !processando){
+
+            if (status === "SUBSCRIBED" && !processando) {
                 processando = true;
 
-                try{
+                try {
+
+                    console.log("Registrando presença:");
+                    console.log("Nickname:", nickname);
+                    console.log("Código:", codigo);
+                    console.log("ID da sala:", salaAtualId);
+                    console.log("É anfitrião?", isHost);
+                    
                     //Informa que o jogador está online
                     const resultado = await canalSala.track({
                         nickname: nickname,
-                        is_host: souAnfitriao
+                        is_host: isHost
                     });
 
-                    if(resultado !== "ok"){
+                    if (resultado !== "ok") {
                         throw new Error("Não foi possível registrar a presença.");
                     }
 
@@ -244,12 +256,12 @@ async function conectarAoLobby(codigo, nickname) {
                     atualizarListaJogadores();
 
                     resolve();
-                }catch(error){
+                } catch (error) {
                     reject(error);
                 }
             }
 
-            else if((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !processando){
+            else if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !processando) {
                 processando = true;
 
                 reject(new Error("Falha ao conectar ao canal da sala: " + status));
