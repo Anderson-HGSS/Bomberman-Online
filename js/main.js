@@ -76,7 +76,7 @@ btnCriar.addEventListener("click", async function () {
             throw new Error("Nenhum dado de sala foi retornado.");
         }
 
-        salaAtualId = sala.atual_id;
+        salaAtualId = sala.sala_id;
 
         //Aqui é feita a conexão ao lobby como anfitrião
         souAnfitriao = true;
@@ -102,12 +102,15 @@ btnEntrar.addEventListener("click", async function(){
 
     if(nickname === ""){
         exibirMensagem("Digite seu nome antes de entrar em uma sala!", mensagemEntrar);
+        return;
     }
     else if(codigo === ""){
         exibirMensagem("Digite o código da sala para entrar!", mensagemEntrar);
+        return;
     }
     else if(codigo.length !== 5){
         exibirMensagem("O código deve conter 5 caracteres!", mensagemEntrar);
+        return;
     }
 
     btnEntrar.disabled = true;
@@ -138,7 +141,7 @@ btnEntrar.addEventListener("click", async function(){
         jogadorAtualId = jogador.jogador_id;
         souAnfitriao = jogador.is_host;
     
-        await conectarAoLobby();
+        await conectarAoLobby(jogador.codigo, nickname);
 
         exibirMensagem(`Você entrou na sala ${jogador.codigo} com sucesso!`, mensagemEntrar);
 
@@ -210,7 +213,14 @@ async function conectarAoLobby(codigo, nickname) {
     return new Promise(function(resolve, reject){
         let processando = false;
 
-        canalSala.subscribe(async function(status) {
+        canalSala.subscribe(async function(status, err) {
+
+            console.log("Status Realtime:", status);
+
+            if(err){
+                console.error("Erro Realtime:", err);
+            }
+            
             if(status === "SUBSCRIBED" && !processando){
                 processando = true;
 
@@ -239,7 +249,7 @@ async function conectarAoLobby(codigo, nickname) {
                 }
             }
 
-            else if(status === "CHANNEL_ERROR" || status === "TIMED_OUT" && !processando){
+            else if((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !processando){
                 processando = true;
 
                 reject(new Error("Falha ao conectar ao canal da sala: " + status));
