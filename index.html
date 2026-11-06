@@ -1,0 +1,77 @@
+<!-- HTML -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BomberMan Amitech</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main id="menu">
+        <h1>Bomberman online</h1>
+        <p>O bomberman exclusivo dos melhores estagiários da prefeitura!</p>
+
+        <!--cadastro do jogador-->
+
+        <div class="campoNomeJogador">
+            <label for="nickname">Seu nome:</label>
+            <input type="text" id="nickname" maxlength="16" , placeholder="Digite o nome que seus amigos verão">
+        </div>
+
+        <!--Criação da sala-->
+        <section class="criar-sala">
+            <h2>Criar uma partida</h2>
+            <button id="criarSala">Criar sala</button>
+
+            <!--Mensagem para o jogador ao tentar criar a sala-->
+            <p id="mensagemCriar"></p>
+
+            <div id="codigoGerado"></div>
+
+        </section>
+
+        <!--Entrar na sala-->
+        <section class="entrar-sala">
+            <h2>Entre em uma partida</h2>
+
+            <label for="codigoSala">Código da sala:</label>
+            <input type="text" id="codigoSala" placeholder="ABCDE" maxlength="5">
+
+            <button id="entrarSala">Entrar na sala</button>
+
+            <p id="mensagemEntrar"></p>
+        </section>
+
+        <section id="lobby">
+            <h2>Lobby da partida</h2>
+
+            <p>
+                Código da sala
+                <strong id="codigoLobby"></strong>
+            </p>
+
+            <p id="statusLobby">
+                Conectando...
+            </p>
+
+            <h3>
+                Jogadores online:
+                <span id="contadorJogadores">0</span>
+            </h3>
+
+            <ul id="listaJogadores"></ul>
+        </section>
+
+
+    </main>
+
+    <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+</body>
+
+
+</html>
