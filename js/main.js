@@ -24,6 +24,12 @@ const btnIniciar = document.getElementById("iniciarPartida");
 //canal de comunicação da sala
 let canalSala = null;
 
+let temporizadorAnfitriao = null;
+
+const TEMPO_TOLERANCIA_ANFITRIAO = 30000;
+
+let encerrandoSalaLocalmente = false;
+
 let salaAtualId = null;
 let jogadorAtualId = null;
 let souAnfitriao = false;
@@ -123,7 +129,7 @@ btnEntrar.addEventListener("click", async function () {
     exibirMensagem("Procurando sala...", mensagemEntrar);
 
     try {
-        
+
         const usuario = await garantirUsuarioAnonimo();
         console.log("Identidade do jogador:", usuario.id);
 
@@ -183,18 +189,113 @@ btnEntrar.addEventListener("click", async function () {
     }
 });
 
+async function sairDoLobbyPorAusenciaDoAnfitriao() {
+    if(encerrandoSalaLocalmente){
+        return;
+    }
+
+    encerrandoSalaLocalmente = true;
+
+    if(temporizadorAnfitriao !== null){
+        clearTimeout(temporizadorAnfitriao);
+        temporizadorAnfitriao = null;
+    }
+
+    statusLobby.textContent = "O anfitrião saiu. Você será desconectado da sala.";
+
+    const canalAnterior = canalSala;
+
+    canalSala = null;
+
+    try {
+        if(canalAnterior){
+            await supabaseClient.removeChannel(canalAnterior);
+        }
+
+    } catch(error){
+        console.error("Erro ao sair do canal:", error);
+    }
+
+    listaJogadores.replaceChildren();
+
+    contadorJogadores.textContent = "0";
+    areaLobby.hidden = true;
+    salaAtualId = null;
+    jogadorAtualId = null;
+    souAnfitriao = false;
+
+    exibirMensagem("O anfitrião saiu da sala. Você foi desconectado.", mensagemEntrar);
+
+    console.log("Jogador desconectado do lobby.");
+    encerrandoSalaLocalmente = false;
+
+}
+
+function verificaAnfitriaoOnline(jogadores){
+    
+    if(souAnfitriao || encerrandoSalaLocalmente){
+        return;
+    }
+
+    //Verifica se existe um anfitrião conectado na sala
+    const anfitriaoOnline = jogadores.some(jogador => jogador.is_host === true);
+
+    if(anfitriaoOnline){
+        if(temporizadorAnfitriao !== null){
+            clearTimeout(temporizadorAnfitriao);
+
+            temporizadorAnfitriao = null;
+
+            console.log("Anfitrião reconectado!");
+        }
+
+        return;
+    }
+
+    if(temporizadorAnfitriao !== null){
+        return;
+    }
+
+    statusLobby.textContent = "Anfitrião desconectado! Aguardando reconexão...";
+
+    console.log("Anfitrião desconectado. Iniciando contagem...");
+
+    temporizadorAnfitriao = setTimeout(async function(){
+        temporizadorAnfitriao = null;
+
+        if(!canalSala){
+            return;
+        }
+
+        const estadoAtual = canalSala.presenceState();
+        const jogadoresAtuais = Object.values(estadoAtual).flat();
+        const anfitriaoVoltou = jogadoresAtuais.some(jogador => jogador.is_host === true);
+
+        if(!anfitriaoVoltou){
+            console.log("Tempo esgotado! Encerrando lobby.");
+
+            await sairDoLobbyPorAusenciaDoAnfitriao();
+        }
+    }, TEMPO_TOLERANCIA_ANFITRIAO);
+}
+
 function atualizarListaJogadores() {
     //presenceState retorna os dados dos clientes conectados no canal
     const estado = canalSala.presenceState();
     //A função flat transforma uma lista de listas emu
     const jogadores = Object.values(estado).flat();
+    verificaAnfitriaoOnline(jogadores);
 
     listaJogadores.replaceChildren();
 
     contadorJogadores.textContent = jogadores.length;
     btnIniciar.disabled = jogadores.length < 2;
 
-    if (jogadores.length < 2) {
+    const anfitriaoOnline = souAnfitriao || jogadores.some(jogador => jogador.is_host === true);
+    if(!anfitriaoOnline){
+        statusLobby.textContent = "Anfitrião desconectado. Aguardando reconexão...";
+    }
+    else if (jogadores.length < 2) {
         statusLobby.textContent = "Aguardando pelo menos 2 jogadores...";
     } else {
         statusLobby.textContent = "Jogadores conectados! A partida pode começar.";
@@ -286,3 +387,4 @@ async function conectarAoLobby(codigo, nickname, isHost) {
         })
     })
 }
+
