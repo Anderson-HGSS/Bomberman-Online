@@ -179,7 +179,9 @@ function atualizarListaJogadores(){
     jogadores.forEach(function(jogador){
         const item = document.createElement("li");
 
-        let identificacao = jogador.nickname + identificacao;
+        let identificacao = jogador.is_host? " (Anfitrião)": "";
+
+        item.textContent = jogador.nickname + identificacao;
 
         listaJogadores.appendChild(item);
     });
