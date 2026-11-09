@@ -500,4 +500,3 @@ function iniciarHeartbeatAnfitriao(){
         enviarHeartbeatAnfitriao(salaIdMonitorada);
     }, INTERVALO_HEARTBEAT);
 }
-
