@@ -34,6 +34,11 @@ let salaAtualId = null;
 let jogadorAtualId = null;
 let souAnfitriao = false;
 
+//Heartbeat para controle das salas sem ninguém
+let intervaloHeartbeat = null;
+let hearbeatEmAndamento = false;
+const INTERVALO_HEARTBEAT = 10000;
+
 function exibirMensagem(msg, elemento) {
     elemento.textContent = msg;
 }
@@ -195,6 +200,7 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
     }
 
     encerrandoSalaLocalmente = true;
+    pararHeartbeatAnfitriao();
 
     if(temporizadorAnfitriao !== null){
         clearTimeout(temporizadorAnfitriao);
@@ -314,6 +320,8 @@ function atualizarListaJogadores() {
 
 async function conectarAoLobby(codigo, nickname, isHost) {
 
+    pararHeartbeatAnfitriao();
+
     //Caso já esteja conectado ao um canal, aqui a gente remove este canal para poder colocar o novo
     if (canalSala) {
         await supabaseClient.removeChannel(canalSala);
@@ -364,6 +372,14 @@ async function conectarAoLobby(codigo, nickname, isHost) {
                         throw new Error("Não foi possível registrar a presença.");
                     }
 
+                    if(isHost){
+                        souAnfitriao = true;
+                        iniciarHeartbeatAnfitriao();
+                    }else{
+                        souAnfitriao = false;
+                        pararHeartbeatAnfitriao();
+                    }
+
                     //Mostra o lobby
                     codigoLobby.textContent = codigo;
                     statusLobby.textContent = "Aguardando outros jogadores...";
@@ -386,5 +402,57 @@ async function conectarAoLobby(codigo, nickname, isHost) {
             }
         })
     })
+}
+
+async function enviarHeartbeatAnfitriao(salaId){
+    // impede que duas solicitações sejam executadas ao mesmo tempo
+    if(hearbeatEmAndamento){
+        return;
+    }
+
+    hearbeatEmAndamento = true;
+
+    try{
+        const {data, error} = await supabaseClient.rpc(
+            "registrar_heartbeat_anfitriao", {p_sala_id: salaId}
+        );
+
+        if(error){
+            throw error;
+        }
+
+        console.log("Heartbeat registrado.", data);
+    } catch(error){
+        console.log("Erro ao registrar heartbeat:", error);
+    } finally{
+        hearbeatEmAndamento = false;
+    }
+}
+
+function pararHeartbeatAnfitriao(){
+    if(intervaloHeartbeat !== null){
+        clearInterval(intervaloHeartbeat);
+        intervaloHeartbeat = null;
+    }
+}
+
+function iniciarHeartbeatAnfitriao(){
+    pararHeartbeatAnfitriao();
+
+    const salaIdMonitorada = salaAtualId;
+
+    if(!salaIdMonitorada || !souAnfitriao){
+        return;
+    }
+
+    enviarHeartbeatAnfitriao(salaIdMonitorada);
+
+    intervaloHeartbeat = setInterval(function(){
+        if(salaAtualId !== salaIdMonitorada || !souAnfitriao){
+            pararHeartbeatAnfitriao();
+            return;
+        }
+        enviarHeartbeatAnfitriao(salaIdMonitorada);
+    }, INTERVALO_HEARTBEAT);
 }
 
