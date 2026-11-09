@@ -195,46 +195,91 @@ btnEntrar.addEventListener("click", async function () {
 });
 
 async function sairDoLobbyPorAusenciaDoAnfitriao() {
-    if(encerrandoSalaLocalmente){
+    if(encerrandoSalaLocalmente || !salaAtualId){
         return;
     }
 
     encerrandoSalaLocalmente = true;
-    pararHeartbeatAnfitriao();
 
     if(temporizadorAnfitriao !== null){
         clearTimeout(temporizadorAnfitriao);
         temporizadorAnfitriao = null;
     }
 
-    statusLobby.textContent = "O anfitrião saiu. Você será desconectado da sala.";
+    const salaIdParaEncerrar = salaAtualId;
 
-    const canalAnterior = canalSala;
+    statusLobby.textContent = "Confirmando encerramento da sala...";
 
-    canalSala = null;
+    try{
+        const {data, error} = await supabaseClient.rpc(
+            "encerrar_sala_abandonada", {p_sala_id: salaIdParaEncerrar}
+        );
 
-    try {
-        if(canalAnterior){
-            await supabaseClient.removeChannel(canalAnterior);
+        if(error){
+            if(error.message?.includes("O anfitrião ainda está ativo!")){
+                statusLobby.textContent = "Verificando novamente a conexão do anfitrião...";
+
+                temporizadorAnfitriao = setTimeout(async function () {
+                    temporizadorAnfitriao = null;
+
+                    if(!canalSala){
+                        return;
+                    }
+
+                    const estado = canalSala.presenceState();
+                    const jogadores = Object.values(estado).flat();
+
+                    const anfitriaoOnline = jogadores.some(jogador => jogador.is_host === true);
+
+                    if(anfitriaoOnline){
+                        atualizarListaJogadores();
+                    }else{
+                        await sairDoLobbyPorAusenciaDoAnfitriao();
+                    }
+                }, 5000);
+
+                return;
+            }
+            throw error;
         }
 
+        console.log("Sala encerrada no supabase:", data);
+
+        pararHeartbeatAnfitriao();
+
+        const canalAnterior = canalSala;
+        canalSala = null;
+
+        if(canalAnterior){
+            try{
+                await supabaseClient.removeChannel(canalAnterior);
+            }catch(error){
+                console.error("Erro ao remover o canal:", error);
+            }
+        }
+
+        listaJogadores.replaceChildren();
+
+        contadorJogadores.textContent = "0";
+
+        areaLobby.hidden = true;
+
+        salaAtualId = null;
+        jogadorAtualId = null;
+        souAnfitriao = false;
+
+        exibirMensagem("O anfitrião saiu. A sala foi encerrada e você foi desconectado.", mensagemEntrar);
+
+        console.log("Participante removido do lobby.");
     } catch(error){
-        console.error("Erro ao sair do canal:", error);
+        console.log("Erro ao encerrar a sala:", error);
+
+        statusLobby.textContent = "Não foi possível confirmar o encerramento da sala.";
+
+        exibirMensagem("Erro ao encerrar a sala. Verifique o console.", mensagemEntrar);
+    } finally{
+        encerrandoSalaLocalmente = false;
     }
-
-    listaJogadores.replaceChildren();
-
-    contadorJogadores.textContent = "0";
-    areaLobby.hidden = true;
-    salaAtualId = null;
-    jogadorAtualId = null;
-    souAnfitriao = false;
-
-    exibirMensagem("O anfitrião saiu da sala. Você foi desconectado.", mensagemEntrar);
-
-    console.log("Jogador desconectado do lobby.");
-    encerrandoSalaLocalmente = false;
-
 }
 
 function verificaAnfitriaoOnline(jogadores){
