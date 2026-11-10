@@ -64,9 +64,6 @@ function desenharMapa(mapa) {
         }
     }
 
-
-    console.table(mapa)
-
     return mapa;
 }
 
@@ -104,7 +101,7 @@ const cores = {
     amarelo: "#CCFF00",
     azul: "#00F5FF",
     verde: "#00E676",
-    roxo: "#BD00FF"
+    roxo: "#BD00FF",
 }
 
 const valoresCores = Object.values(cores);
@@ -118,7 +115,7 @@ const jogador = {
     nickname: "Anderson",
     x: (posicaoSorteada[0] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
     y: (posicaoSorteada[1] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
-    velocidade: 3,
+    velocidade: 5,
     vivo: true,
     cor: corSoretada
 }
@@ -128,10 +125,95 @@ function desenharJogador(jogador) {
     contexto.beginPath();
     contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
     contexto.fillStyle = jogador.cor;
+
+    switch (jogador.cor) {
+        case "#CCFF00":
+            contexto.shadowColor = cores.amarelo;
+            break;
+        case "#00F5FF":
+            contexto.shadowColor = cores.azul;
+            break;
+        case "#00E676":
+            contexto.shadowColor = cores.verde;
+            break;
+        case "#BD00FF":
+            contexto.shadowColor = cores.roxo;
+            break;
+    }
+
+    contexto.shadowBlur = 50;
     contexto.fill();
+    contexto.shadowBlur = 0;
 }
 
 const mapaSorteado = sorteiaMapa(mapas);
 adicionarBlocosDestrutiveis(mapaSorteado);
+
+const teclas = {
+    KeyS: false,
+    KeyW: false,
+    KeyA: false,
+    KeyD: false,
+}
+
+document.addEventListener("keydown", (event) => {
+    if (event.code === 'KeyS' || event.code === 'ArrowDown') {
+        teclas.KeyS = true;
+        event.preventDefault();
+    }
+    if (event.code === 'KeyW' || event.code === 'ArrowUp') {
+        teclas.KeyW = true;
+        event.preventDefault();
+    }
+    if (event.code === 'KeyA' || event.code === 'ArrowLeft') {
+        teclas.KeyA = true;
+        event.preventDefault();
+    }
+    if (event.code === 'KeyD' || event.code === 'ArrowRight') {
+        teclas.KeyD = true;
+        event.preventDefault();
+    }
+});
+
+document.addEventListener("keyup", (event) => {
+    if (event.code === 'KeyS' || event.code === 'ArrowDown') {
+        teclas.KeyS = false;
+    }
+    if (event.code === 'KeyW' || event.code === 'ArrowUp') {
+        teclas.KeyW = false;
+    }
+    if (event.code === 'KeyA' || event.code === 'ArrowLeft') {
+        teclas.KeyA = false;
+    }
+    if (event.code === 'KeyD' || event.code === 'ArrowRight') {
+        teclas.KeyD = false;
+    }
+});
+
+function atualizarMapa() {
+    if (teclas.KeyS) {
+        jogador.y += jogador.velocidade;
+    }
+
+    if (teclas.KeyW) {
+        jogador.y -= jogador.velocidade;
+    }
+
+    if (teclas.KeyA) {
+        jogador.x -= jogador.velocidade;
+    }
+
+    if (teclas.KeyD) {
+        jogador.x += jogador.velocidade;
+    }
+
+    contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
+    desenharMapa(mapaSorteado);
+    desenharJogador(jogador);
+    requestAnimationFrame(atualizarMapa);
+}
+
 desenharMapa(mapaSorteado);
-desenharJogador(jogador)
+desenharJogador(jogador);
+
+requestAnimationFrame(atualizarMapa)
