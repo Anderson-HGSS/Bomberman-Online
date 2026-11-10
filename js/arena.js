@@ -191,21 +191,19 @@ document.addEventListener("keyup", (event) => {
 });
 
 function atualizarMapa() {
-    if (teclas.KeyS) {
-        jogador.y += jogador.velocidade;
+
+    let direcaoX = Number(teclas.KeyD) - Number(teclas.KeyA);
+    let direcaoY = Number(teclas.KeyS) - Number(teclas.KeyW);
+
+    const comprimentoVetor = Math.sqrt(Math.pow(direcaoX, 2) + Math.pow(direcaoY, 2));
+
+    if(comprimentoVetor > 0){
+        direcaoX = direcaoX / comprimentoVetor;
+        direcaoY = direcaoY / comprimentoVetor;
     }
 
-    if (teclas.KeyW) {
-        jogador.y -= jogador.velocidade;
-    }
-
-    if (teclas.KeyA) {
-        jogador.x -= jogador.velocidade;
-    }
-
-    if (teclas.KeyD) {
-        jogador.x += jogador.velocidade;
-    }
+    jogador.x += jogador.velocidade * direcaoX;
+    jogador.y += jogador.velocidade * direcaoY;
 
     contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
     desenharMapa(mapaSorteado);
