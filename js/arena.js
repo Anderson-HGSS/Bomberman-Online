@@ -105,47 +105,60 @@ const cores = {
 }
 
 const valoresCores = Object.values(cores);
-const corSoretada = valoresCores[Math.floor(Math.random() * valoresCores.length)]
+const posicoesPossiveisParaSpawn = [[1, 1], [1, COLUNAS - 2], [LINHAS - 2, 1], [LINHAS - 2, COLUNAS - 2]];
 
-const posicoesPossiveisParaSpawn = [[1, 1], [COLUNAS - 2, 1], [1, LINHAS - 2], [COLUNAS - 2, LINHAS - 2]];
-const posicaoSorteada = posicoesPossiveisParaSpawn[Math.floor(Math.random() * posicoesPossiveisParaSpawn.length)];
+function sortearERemover(lista) {
 
-const jogador = {
-    id: 12,
-    nickname: "Anderson",
-    x: (posicaoSorteada[0] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
-    y: (posicaoSorteada[1] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
-    velocidade: 300, //em pixels por segundo
-    vivo: true,
-    cor: corSoretada
+    const indice = Math.floor(Math.random() * lista.length);
+
+    return lista.splice(indice, 1)[0];
+
 }
 
-function desenharJogador(jogador) {
+function criaJogador(id, nickname) {
+    const posicaoSorteada = sortearERemover(posicoesPossiveisParaSpawn);
+    const corSoretada = sortearERemover(valoresCores);
+    const x = (posicaoSorteada[1] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2);
+    const y = (posicaoSorteada[0] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2);
 
-    contexto.beginPath();
-
-    //Aqui é desenhado o jogador
-    contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
-    contexto.fillStyle = jogador.cor;
-
-    switch (jogador.cor) {
-        case "#CCFF00":
-            contexto.shadowColor = cores.amarelo;
-            break;
-        case "#00F5FF":
-            contexto.shadowColor = cores.azul;
-            break;
-        case "#00E676":
-            contexto.shadowColor = cores.verde;
-            break;
-        case "#BD00FF":
-            contexto.shadowColor = cores.roxo;
-            break;
+    return {
+        id: id,
+        nickname: nickname,
+        x: x,
+        y: y,
+        velocidade: 300, // em pixels por segundo
+        vivo: true,
+        cor: corSoretada
     }
+}
 
-    contexto.shadowBlur = 50;
-    contexto.fill();
-    contexto.shadowBlur = 0;
+const dadosJogadores = [
+    { id: 13, nickname: "Anderson" },
+    { id: 14, nickname: "Pedro" },
+    { id: 15, nickname: "Maria" },
+    { id: 16, nickname: "Roberta" },
+];
+
+const jogadores = dadosJogadores.map(jogador => criaJogador(jogador.id, jogador.nickname));
+
+function desenharJogador(jogadores) {
+
+    jogadores.forEach((jogador) => {
+
+        contexto.beginPath();
+
+        //Aqui é desenhado o jogador
+        contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
+
+        contexto.fillStyle = jogador.cor;
+
+        contexto.shadowColor = jogador.cor;
+        contexto.shadowBlur = 50;
+
+        contexto.fill();
+
+        contexto.shadowBlur = 0;
+    });
 }
 
 const mapaSorteado = sorteiaMapa(mapas);
@@ -161,19 +174,19 @@ const teclas = {
 document.addEventListener("keydown", (event) => {
     if (event.code === 'KeyS' || event.code === 'ArrowDown') {
         teclas.KeyS = true;
-        event.preventDefault();
+        // event.preventDefault();
     }
     if (event.code === 'KeyW' || event.code === 'ArrowUp') {
         teclas.KeyW = true;
-        event.preventDefault();
+        // event.preventDefault();
     }
     if (event.code === 'KeyA' || event.code === 'ArrowLeft') {
         teclas.KeyA = true;
-        event.preventDefault();
+        // event.preventDefault();
     }
     if (event.code === 'KeyD' || event.code === 'ArrowRight') {
         teclas.KeyD = true;
-        event.preventDefault();
+        // event.preventDefault();
     }
 });
 
@@ -196,7 +209,7 @@ let ultimoTimestamp = 0;
 
 function atualizarMapa(timestampAtual) {
 
-    if(!ultimoTimestamp){
+    if (!ultimoTimestamp) {
         ultimoTimestamp = timestampAtual;
     }
 
@@ -217,17 +230,17 @@ function atualizarMapa(timestampAtual) {
     const proximoX = jogador.x + (jogador.velocidade * direcaoX * deltaTime);
     const proximoY = jogador.y + (jogador.velocidade * direcaoY * deltaTime);
 
-    if(!verificarColisao(proximoX, jogador.y, mapaSorteado)){
+    if (!verificarColisao(proximoX, jogador.y, mapaSorteado)) {
         jogador.x = proximoX;
     }
-    
-    if(!verificarColisao(jogador.x, proximoY, mapaSorteado)){
+
+    if (!verificarColisao(jogador.x, proximoY, mapaSorteado)) {
         jogador.y = proximoY;
     }
 
     contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
     desenharMapa(mapaSorteado);
-    desenharJogador(jogador);
+    desenharJogador(jogadores);
     requestAnimationFrame(atualizarMapa);
 }
 
@@ -248,7 +261,7 @@ function verificarColisao(x, y, mapa) {
 
     const dentroDoLimite = linhaInicial >= 0 && colunaInicial >= 0 && linhaFinal < totalLinhas && colunaFinal < totalColunas;
 
-    if(!dentroDoLimite){
+    if (!dentroDoLimite) {
         return true;
     }
 
@@ -277,5 +290,5 @@ function verificarColisao(x, y, mapa) {
 }
 
 desenharMapa(mapaSorteado);
-desenharJogador(jogador);
+desenharJogador(jogadores);
 requestAnimationFrame(atualizarMapa)

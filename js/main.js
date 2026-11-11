@@ -39,6 +39,11 @@ let intervaloHeartbeat = null;
 let hearbeatEmAndamento = false;
 const INTERVALO_HEARTBEAT = 10000;
 
+let usuarioAtualId = null;
+let jogadorLocal = null;
+let jogadoresRemotos = [];
+let jogadoresConectados = [];
+
 function exibirMensagem(msg, elemento) {
     elemento.textContent = msg;
 }
@@ -71,6 +76,8 @@ btnCriar.addEventListener("click", async function () {
         const codigo = gerarCodigoSala();
 
         const usuario = await garantirUsuarioAnonimo();
+        usuarioAtualId = usuario.id;
+
         console.log("Identidade do jogador:", usuario.id);
 
         const { data, error } = await supabaseClient.rpc(
@@ -136,6 +143,8 @@ btnEntrar.addEventListener("click", async function () {
     try {
 
         const usuario = await garantirUsuarioAnonimo();
+        usuarioAtualId = usuario.id;
+
         console.log("Identidade do jogador:", usuario.id);
 
         const { data, error } = await supabaseClient.rpc(
@@ -195,13 +204,13 @@ btnEntrar.addEventListener("click", async function () {
 });
 
 async function sairDoLobbyPorAusenciaDoAnfitriao() {
-    if(encerrandoSalaLocalmente || !salaAtualId){
+    if (encerrandoSalaLocalmente || !salaAtualId) {
         return;
     }
 
     encerrandoSalaLocalmente = true;
 
-    if(temporizadorAnfitriao !== null){
+    if (temporizadorAnfitriao !== null) {
         clearTimeout(temporizadorAnfitriao);
         temporizadorAnfitriao = null;
     }
@@ -210,19 +219,19 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
 
     statusLobby.textContent = "Confirmando encerramento da sala...";
 
-    try{
-        const {data, error} = await supabaseClient.rpc(
-            "encerrar_sala_abandonada", {p_sala_id: salaIdParaEncerrar}
+    try {
+        const { data, error } = await supabaseClient.rpc(
+            "encerrar_sala_abandonada", { p_sala_id: salaIdParaEncerrar }
         );
 
-        if(error){
-            if(error.message?.includes("O anfitrião ainda está ativo!")){
+        if (error) {
+            if (error.message?.includes("O anfitrião ainda está ativo!")) {
                 statusLobby.textContent = "Verificando novamente a conexão do anfitrião...";
 
                 temporizadorAnfitriao = setTimeout(async function () {
                     temporizadorAnfitriao = null;
 
-                    if(!canalSala){
+                    if (!canalSala) {
                         return;
                     }
 
@@ -231,9 +240,9 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
 
                     const anfitriaoOnline = jogadores.some(jogador => jogador.is_host === true);
 
-                    if(anfitriaoOnline){
+                    if (anfitriaoOnline) {
                         atualizarListaJogadores();
-                    }else{
+                    } else {
                         await sairDoLobbyPorAusenciaDoAnfitriao();
                     }
                 }, 5000);
@@ -250,10 +259,10 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
         const canalAnterior = canalSala;
         canalSala = null;
 
-        if(canalAnterior){
-            try{
+        if (canalAnterior) {
+            try {
                 await supabaseClient.removeChannel(canalAnterior);
-            }catch(error){
+            } catch (error) {
                 console.error("Erro ao remover o canal:", error);
             }
         }
@@ -271,28 +280,28 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
         exibirMensagem("O anfitrião saiu. A sala foi encerrada e você foi desconectado.", mensagemEntrar);
 
         console.log("Participante removido do lobby.");
-    } catch(error){
+    } catch (error) {
         console.log("Erro ao encerrar a sala:", error);
 
         statusLobby.textContent = "Não foi possível confirmar o encerramento da sala.";
 
         exibirMensagem("Erro ao encerrar a sala. Verifique o console.", mensagemEntrar);
-    } finally{
+    } finally {
         encerrandoSalaLocalmente = false;
     }
 }
 
-function verificaAnfitriaoOnline(jogadores){
-    
-    if(souAnfitriao || encerrandoSalaLocalmente){
+function verificaAnfitriaoOnline(jogadores) {
+
+    if (souAnfitriao || encerrandoSalaLocalmente) {
         return;
     }
 
     //Verifica se existe um anfitrião conectado na sala
     const anfitriaoOnline = jogadores.some(jogador => jogador.is_host === true);
 
-    if(anfitriaoOnline){
-        if(temporizadorAnfitriao !== null){
+    if (anfitriaoOnline) {
+        if (temporizadorAnfitriao !== null) {
             clearTimeout(temporizadorAnfitriao);
 
             temporizadorAnfitriao = null;
@@ -303,7 +312,7 @@ function verificaAnfitriaoOnline(jogadores){
         return;
     }
 
-    if(temporizadorAnfitriao !== null){
+    if (temporizadorAnfitriao !== null) {
         return;
     }
 
@@ -311,10 +320,10 @@ function verificaAnfitriaoOnline(jogadores){
 
     console.log("Anfitrião desconectado. Iniciando contagem...");
 
-    temporizadorAnfitriao = setTimeout(async function(){
+    temporizadorAnfitriao = setTimeout(async function () {
         temporizadorAnfitriao = null;
 
-        if(!canalSala){
+        if (!canalSala) {
             return;
         }
 
@@ -322,7 +331,7 @@ function verificaAnfitriaoOnline(jogadores){
         const jogadoresAtuais = Object.values(estadoAtual).flat();
         const anfitriaoVoltou = jogadoresAtuais.some(jogador => jogador.is_host === true);
 
-        if(!anfitriaoVoltou){
+        if (!anfitriaoVoltou) {
             console.log("Tempo esgotado! Encerrando lobby.");
 
             await sairDoLobbyPorAusenciaDoAnfitriao();
@@ -333,8 +342,16 @@ function verificaAnfitriaoOnline(jogadores){
 function atualizarListaJogadores() {
     //presenceState retorna os dados dos clientes conectados no canal
     const estado = canalSala.presenceState();
-    //A função flat transforma uma lista de listas emu
+
+    //A função flat transforma uma lista de listas em uma só
     const jogadores = Object.values(estado).flat();
+
+    identificarJogadores(jogadores);
+
+    console.log("Jogador local:", jogadorLocal);
+    console.log("Jogadores remotos:", jogadoresRemotos);
+
+
     verificaAnfitriaoOnline(jogadores);
 
     listaJogadores.replaceChildren();
@@ -343,7 +360,7 @@ function atualizarListaJogadores() {
     btnIniciar.disabled = jogadores.length < 2;
 
     const anfitriaoOnline = souAnfitriao || jogadores.some(jogador => jogador.is_host === true);
-    if(!anfitriaoOnline){
+    if (!anfitriaoOnline) {
         statusLobby.textContent = "Anfitrião desconectado. Aguardando reconexão...";
     }
     else if (jogadores.length < 2) {
@@ -409,6 +426,7 @@ async function conectarAoLobby(codigo, nickname, isHost) {
 
                     //Informa que o jogador está online
                     const resultado = await canalSala.track({
+                        auth_user_id: usuarioAtualId,
                         nickname: nickname,
                         is_host: isHost
                     });
@@ -417,10 +435,10 @@ async function conectarAoLobby(codigo, nickname, isHost) {
                         throw new Error("Não foi possível registrar a presença.");
                     }
 
-                    if(isHost){
+                    if (isHost) {
                         souAnfitriao = true;
                         iniciarHeartbeatAnfitriao();
-                    }else{
+                    } else {
                         souAnfitriao = false;
                         pararHeartbeatAnfitriao();
                     }
@@ -449,54 +467,69 @@ async function conectarAoLobby(codigo, nickname, isHost) {
     })
 }
 
-async function enviarHeartbeatAnfitriao(salaId){
+async function enviarHeartbeatAnfitriao(salaId) {
     // impede que duas solicitações sejam executadas ao mesmo tempo
-    if(hearbeatEmAndamento){
+    if (hearbeatEmAndamento) {
         return;
     }
 
     hearbeatEmAndamento = true;
 
-    try{
-        const {data, error} = await supabaseClient.rpc(
-            "registrar_heartbeat_anfitriao", {p_sala_id: salaId}
+    try {
+        const { data, error } = await supabaseClient.rpc(
+            "registrar_heartbeat_anfitriao", { p_sala_id: salaId }
         );
 
-        if(error){
+        if (error) {
             throw error;
         }
 
         console.log("Heartbeat registrado.", data);
-    } catch(error){
+    } catch (error) {
         console.log("Erro ao registrar heartbeat:", error);
-    } finally{
+    } finally {
         hearbeatEmAndamento = false;
     }
 }
 
-function pararHeartbeatAnfitriao(){
-    if(intervaloHeartbeat !== null){
+function pararHeartbeatAnfitriao() {
+    if (intervaloHeartbeat !== null) {
         clearInterval(intervaloHeartbeat);
         intervaloHeartbeat = null;
     }
 }
 
-function iniciarHeartbeatAnfitriao(){
+function iniciarHeartbeatAnfitriao() {
     pararHeartbeatAnfitriao();
 
     const salaIdMonitorada = salaAtualId;
 
-    if(!salaIdMonitorada || !souAnfitriao){
+    if (!salaIdMonitorada || !souAnfitriao) {
         return;
     }
 
     enviarHeartbeatAnfitriao(salaIdMonitorada);
 
-    intervaloHeartbeat = setInterval(function(){
-        if(salaAtualId !== salaIdMonitorada || !souAnfitriao){
+    intervaloHeartbeat = setInterval(function () {
+        if (salaAtualId !== salaIdMonitorada || !souAnfitriao) {
             pararHeartbeatAnfitriao();
             return;
         }
         enviarHeartbeatAnfitriao(salaIdMonitorada);
     }, INTERVALO_HEARTBEAT);
+}
+
+function identificarJogadores(presencas) {
+
+    jogadoresConectados = presencas.map(presenca => {
+        return {
+            id: presenca.auth_user_id,
+            nickname: presenca.nickname,
+            is_host: presenca.is_host,
+            isLocal: presenca.auth_user_id === usuarioAtualId
+        }
+    });
+
+    jogadorLocal = jogadoresConectados.find(jogador => jogador.isLocal) || null;
+    jogadoresRemotos = jogadoresConectados.filter(jogador => !jogador.isLocal);
 }
