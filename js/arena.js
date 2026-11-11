@@ -115,7 +115,7 @@ const jogador = {
     nickname: "Anderson",
     x: (posicaoSorteada[0] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
     y: (posicaoSorteada[1] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2),
-    velocidade: 5,
+    velocidade: 300, //em pixels por segundo
     vivo: true,
     cor: corSoretada
 }
@@ -192,7 +192,17 @@ document.addEventListener("keyup", (event) => {
     }
 });
 
-function atualizarMapa() {
+let ultimoTimestamp = 0;
+
+function atualizarMapa(timestampAtual) {
+
+    if(!ultimoTimestamp){
+        ultimoTimestamp = timestampAtual;
+    }
+
+    const deltaTime = Math.min((timestampAtual - ultimoTimestamp) / 1000, 0.05);
+
+    ultimoTimestamp = timestampAtual;
 
     let direcaoX = Number(teclas.KeyD) - Number(teclas.KeyA);
     let direcaoY = Number(teclas.KeyS) - Number(teclas.KeyW);
@@ -204,8 +214,8 @@ function atualizarMapa() {
         direcaoY = direcaoY / comprimentoVetor;
     }
 
-    const proximoX = jogador.x + jogador.velocidade * direcaoX;
-    const proximoY = jogador.y + jogador.velocidade * direcaoY;
+    const proximoX = jogador.x + (jogador.velocidade * direcaoX * deltaTime);
+    const proximoY = jogador.y + (jogador.velocidade * direcaoY * deltaTime);
 
     if(!verificarColisao(proximoX, jogador.y, mapaSorteado)){
         jogador.x = proximoX;
