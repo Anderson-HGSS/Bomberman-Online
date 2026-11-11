@@ -123,6 +123,8 @@ const jogador = {
 function desenharJogador(jogador) {
 
     contexto.beginPath();
+
+    //Aqui é desenhado o jogador
     contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
     contexto.fillStyle = jogador.cor;
 
@@ -197,13 +199,21 @@ function atualizarMapa() {
 
     const comprimentoVetor = Math.sqrt(Math.pow(direcaoX, 2) + Math.pow(direcaoY, 2));
 
-    if(comprimentoVetor > 0){
+    if (comprimentoVetor > 0) {
         direcaoX = direcaoX / comprimentoVetor;
         direcaoY = direcaoY / comprimentoVetor;
     }
 
-    jogador.x += jogador.velocidade * direcaoX;
-    jogador.y += jogador.velocidade * direcaoY;
+    const proximoX = jogador.x + jogador.velocidade * direcaoX;
+    const proximoY = jogador.y + jogador.velocidade * direcaoY;
+
+    if(!verificarColisao(proximoX, jogador.y, mapaSorteado)){
+        jogador.x = proximoX;
+    }
+    
+    if(!verificarColisao(jogador.x, proximoY, mapaSorteado)){
+        jogador.y = proximoY;
+    }
 
     contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
     desenharMapa(mapaSorteado);
@@ -211,7 +221,51 @@ function atualizarMapa() {
     requestAnimationFrame(atualizarMapa);
 }
 
+function verificarColisao(x, y, mapa) {
+    const yMin = y - 20;
+    const yMax = y + 20;
+    const xMin = x - 20;
+    const xMax = x + 20;
+
+    const colunaInicial = Math.floor(xMin / TAMANHO_CELULA);
+    const colunaFinal = Math.floor(xMax / TAMANHO_CELULA);
+
+    const linhaInicial = Math.floor(yMin / TAMANHO_CELULA);
+    const linhaFinal = Math.floor(yMax / TAMANHO_CELULA);
+
+    const totalLinhas = mapa.length;
+    const totalColunas = mapa[0].length;
+
+    const dentroDoLimite = linhaInicial >= 0 && colunaInicial >= 0 && linhaFinal < totalLinhas && colunaFinal < totalColunas;
+
+    if(!dentroDoLimite){
+        return true;
+    }
+
+    //Colisão superior
+    if (mapa[linhaInicial][colunaInicial] !== 0 || mapa[linhaInicial][colunaFinal] !== 0) {
+        return true;
+    }
+
+    //Colisão esquerda
+    if (mapa[linhaInicial][colunaInicial] !== 0 || mapa[linhaFinal][colunaInicial] !== 0) {
+        return true;
+    }
+
+    //Colisão inferior
+    if (mapa[linhaFinal][colunaInicial] !== 0 || mapa[linhaFinal][colunaFinal] !== 0) {
+        return true;
+    }
+
+    //Colisão direita
+    if (mapa[linhaFinal][colunaFinal] !== 0 || mapa[linhaInicial][colunaFinal] !== 0) {
+        return true;
+    }
+
+    return false;
+
+}
+
 desenharMapa(mapaSorteado);
 desenharJogador(jogador);
-
 requestAnimationFrame(atualizarMapa)
