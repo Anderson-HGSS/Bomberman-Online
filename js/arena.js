@@ -104,42 +104,48 @@ const cores = {
     roxo: "#BD00FF",
 }
 
-const valoresCores = Object.values(cores);
-const posicoesPossiveisParaSpawn = [[1, 1], [1, COLUNAS - 2], [LINHAS - 2, 1], [LINHAS - 2, COLUNAS - 2]];
+const POSICOES_SPAWN = [
+    { linha: 1, coluna: 1 },
+    { linha: 1, coluna: COLUNAS - 2 },
+    { linha: LINHAS - 2, coluna: 1 },
+    { linha: LINHAS - 2, coluna: COLUNAS - 2 }
+];
 
-function sortearERemover(lista) {
+const CORES_SPAWN = [
+    cores.amarelo,
+    cores.azul,
+    cores.verde,
+    cores.roxo
+];
 
-    const indice = Math.floor(Math.random() * lista.length);
+function criaPersonagem(jogador) {
+    const slot = Number(jogador.spawn_slot);
 
-    return lista.splice(indice, 1)[0];
+    if(!Number.isInteger(slot) || slot < 0 || slot >= POSICOES_SPAWN.length){
+        console.error("Spawn inválido:", jogador);
+        return null;
+    }
 
-}
+    const posicao = POSICOES_SPAWN[slot];
 
-function criaJogador(id, nickname) {
-    const posicaoSorteada = sortearERemover(posicoesPossiveisParaSpawn);
-    const corSoretada = sortearERemover(valoresCores);
-    const x = (posicaoSorteada[1] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2);
-    const y = (posicaoSorteada[0] * TAMANHO_CELULA) + (TAMANHO_CELULA / 2);
+    const x = (posicao.coluna * TAMANHO_CELULA) + TAMANHO_CELULA / 2;
+    const y = (posicao.linha * TAMANHO_CELULA) + TAMANHO_CELULA / 2;
 
     return {
-        id: id,
-        nickname: nickname,
+        id: jogador.id,
+        nickname: jogador.nickname,
         x: x,
         y: y,
         velocidade: 300, // em pixels por segundo
         vivo: true,
-        cor: corSoretada
+        cor: CORES_SPAWN[slot],
+        is_host: jogador.is_host,
+        isLocal: jogador.isLocal,
+        spawn_slot: slot
     }
 }
 
-const dadosJogadores = [
-    { id: 13, nickname: "Anderson" },
-    { id: 14, nickname: "Pedro" },
-    { id: 15, nickname: "Maria" },
-    { id: 16, nickname: "Roberta" },
-];
 
-const jogadores = dadosJogadores.map(jogador => criaJogador(jogador.id, jogador.nickname));
 
 function desenharJogador(jogadores) {
 
@@ -291,4 +297,4 @@ function verificarColisao(x, y, mapa) {
 
 desenharMapa(mapaSorteado);
 desenharJogador(jogadores);
-requestAnimationFrame(atualizarMapa)
+requestAnimationFrame(atualizarMapa);

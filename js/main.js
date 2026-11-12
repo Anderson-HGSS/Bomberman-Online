@@ -103,7 +103,7 @@ btnCriar.addEventListener("click", async function () {
 
         //Aqui é feita a conexão ao lobby como anfitrião
         souAnfitriao = true;
-        await conectarAoLobby(sala.codigo, nickname, true);
+        await conectarAoLobby(sala.codigo, nickname, true, sala.spawn_slot);
 
         exibirMensagem("Sala Criada com sucesso! Compartilhe esse código com seus amigos:", mensagemCriar);
         codigoGerado.textContent = sala.codigo;
@@ -175,7 +175,7 @@ btnEntrar.addEventListener("click", async function () {
         console.log("Dados recebidos do Supabase:", jogador);
         console.log("É anfitrião?", isHost);
 
-        await conectarAoLobby(jogador.codigo, nickname, isHost);
+        await conectarAoLobby(jogador.codigo, nickname, isHost, jogador.spawn_slot);
 
         exibirMensagem(`Você entrou na sala ${jogador.codigo} com sucesso!`, mensagemEntrar);
 
@@ -380,7 +380,7 @@ function atualizarListaJogadores() {
     });
 }
 
-async function conectarAoLobby(codigo, nickname, isHost) {
+async function conectarAoLobby(codigo, nickname, isHost, spawnSlot) {
 
     pararHeartbeatAnfitriao();
 
@@ -428,7 +428,8 @@ async function conectarAoLobby(codigo, nickname, isHost) {
                     const resultado = await canalSala.track({
                         auth_user_id: usuarioAtualId,
                         nickname: nickname,
-                        is_host: isHost
+                        is_host: isHost,
+                        spawn_slot: spawnSlot
                     });
 
                     if (resultado !== "ok") {
@@ -519,17 +520,38 @@ function iniciarHeartbeatAnfitriao() {
     }, INTERVALO_HEARTBEAT);
 }
 
-function identificarJogadores(presencas) {
+function identificarJogadores() {
+    const estado = canalSala.presenceState();
+    const presencas = Object.values(estado).flat();
 
-    jogadoresConectados = presencas.map(presenca => {
-        return {
-            id: presenca.auth_user_id,
-            nickname: presenca.nickname,
-            is_host: presenca.is_host,
-            isLocal: presenca.auth_user_id === usuarioAtualId
+    const dadosjogadores = presencas.map(presenca => ({
+        id: presenca.auth_user_id,
+        nickname: presenca.nickname,
+        is_host: presenca.is_host,
+        isLocal: presenca.auth_user_id === usuarioAtualId,
+        spawn_slot: presenca.spawn_slot
+    }));
+
+    const personagensAnteriores = new Map(jogadoresConectados.map(jogador => [jogador.id, jogador]));
+
+    jogadoresConectados = dadosjogadores.map(dados => {
+        const existente = personagensAnteriores.get(dados.id);
+
+        if(existente){
+            existente.nickname = dados.nickname;
+            existente.is_host = dados.is_host;
+            existente.isLocal = dados.isLocal;
+            existente.spawn_slot = dados.spawn_slot;
+
+            return existente;
         }
-    });
+
+        return criaPersonagem(dados);
+    }).filter(jogador => jogador !== null);
 
     jogadorLocal = jogadoresConectados.find(jogador => jogador.isLocal) || null;
+
     jogadoresRemotos = jogadoresConectados.filter(jogador => !jogador.isLocal);
+
+    console.log(jogadoresConectados);
 }
