@@ -138,6 +138,8 @@ function criaPersonagem(jogador) {
     return {
         id: jogador.id,
         nickname: jogador.nickname,
+        x: x,
+        y: y,
         alvoX: x,
         alvoY: y,
         velocidade: 300, // em pixels por segundo
@@ -156,7 +158,7 @@ function desenharJogadores(jogadores) {
         contexto.beginPath();
 
         //Aqui é desenhado o jogador
-        contexto.arc(jogador.alvoX, jogador.alvoY, 20, 0, Math.PI * 2);
+        contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
 
         contexto.fillStyle = jogador.cor;
 
@@ -237,17 +239,17 @@ function atualizarMapa(timestampAtual) {
             direcaoY = direcaoY / comprimentoVetor;
         }
     
-        const proximoX = jogadorLocal.alvoX + (jogadorLocal.velocidade * direcaoX * deltaTime);
-        const proximoY = jogadorLocal.alvoY + (jogadorLocal.velocidade * direcaoY * deltaTime);
+        const proximoX = jogadorLocal.x + (jogadorLocal.velocidade * direcaoX * deltaTime);
+        const proximoY = jogadorLocal.y + (jogadorLocal.velocidade * direcaoY * deltaTime);
     
         //verifica colisão horizontal
-        if (!verificarColisao(proximoX, jogadorLocal.alvoY, mapaSorteado)) {
-            jogadorLocal.alvoX = proximoX;
+        if (!verificarColisao(proximoX, jogadorLocal.y, mapaSorteado)) {
+            jogadorLocal.x = proximoX;
         }
     
         //verifica colisão veritical
-        if (!verificarColisao(jogadorLocal.alvoX, proximoY, mapaSorteado)) {
-            jogadorLocal.alvoY = proximoY;
+        if (!verificarColisao(jogadorLocal.x, proximoY, mapaSorteado)) {
+            jogadorLocal.y = proximoY;
         }
 
 
@@ -260,8 +262,8 @@ function atualizarMapa(timestampAtual) {
                 event: "movimento",
                 payload: {
                     auth_user_id: usuarioAtualId,
-                    x: jogadorLocal.alvoX,
-                    y: jogadorLocal.alvoY
+                    x: jogadorLocal.x,
+                    y: jogadorLocal.y
                 }
             }).then(status => {
                 if(status !== "ok"){
@@ -271,7 +273,7 @@ function atualizarMapa(timestampAtual) {
         }
     }
 
-    const intensidadeInterpolacao = 8;
+    const intensidadeInterpolacao = 14;
 
     const alpha = 1 - Math.exp(-intensidadeInterpolacao * deltaTime);
 
