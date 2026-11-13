@@ -125,7 +125,7 @@ const CORES_SPAWN = [
 function criaPersonagem(jogador) {
     const slot = Number(jogador.spawn_slot);
 
-    if(!Number.isInteger(slot) || slot < 0 || slot >= POSICOES_SPAWN.length){
+    if (!Number.isInteger(slot) || slot < 0 || slot >= POSICOES_SPAWN.length) {
         console.error("Spawn inválido:", jogador);
         return null;
     }
@@ -227,26 +227,26 @@ function atualizarMapa(timestampAtual) {
 
     ultimoTimestamp = timestampAtual;
 
-    if(jogadorLocal && jogadorLocal.vivo){
+    if (jogadorLocal && jogadorLocal.vivo) {
 
         let direcaoX = Number(teclas.KeyD) - Number(teclas.KeyA);
         let direcaoY = Number(teclas.KeyS) - Number(teclas.KeyW);
-    
+
         const comprimentoVetor = Math.sqrt(Math.pow(direcaoX, 2) + Math.pow(direcaoY, 2));
-    
+
         if (comprimentoVetor > 0) {
             direcaoX = direcaoX / comprimentoVetor;
             direcaoY = direcaoY / comprimentoVetor;
         }
-    
+
         const proximoX = jogadorLocal.x + (jogadorLocal.velocidade * direcaoX * deltaTime);
         const proximoY = jogadorLocal.y + (jogadorLocal.velocidade * direcaoY * deltaTime);
-    
+
         //verifica colisão horizontal
         if (!verificarColisao(proximoX, jogadorLocal.y, mapaSorteado)) {
             jogadorLocal.x = proximoX;
         }
-    
+
         //verifica colisão veritical
         if (!verificarColisao(jogadorLocal.x, proximoY, mapaSorteado)) {
             jogadorLocal.y = proximoY;
@@ -254,7 +254,7 @@ function atualizarMapa(timestampAtual) {
 
 
         //Aqui é enviado o payload para o supabase através do broadcast
-        if(comprimentoVetor > 0 && timestampAtual - ultimoBroadcast >= INTERVALO_BROADCAST && canalSala){
+        if (comprimentoVetor > 0 && timestampAtual - ultimoBroadcast >= INTERVALO_BROADCAST && canalSala) {
             ultimoBroadcast = timestampAtual;
 
             canalSala.send({
@@ -266,7 +266,7 @@ function atualizarMapa(timestampAtual) {
                     y: jogadorLocal.y
                 }
             }).then(status => {
-                if(status !== "ok"){
+                if (status !== "ok") {
                     console.warn("Falha ao transmitir evento:", status);
                 }
             });
@@ -277,7 +277,7 @@ function atualizarMapa(timestampAtual) {
 
     const alpha = 1 - Math.exp(-intensidadeInterpolacao * deltaTime);
 
-    for (const jogador of jogadoresRemotos){
+    for (const jogador of jogadoresRemotos) {
         jogador.x += (jogador.alvoX - jogador.x) * alpha;
         jogador.y += (jogador.alvoY - jogador.y) * alpha;
     }
@@ -334,6 +334,24 @@ function verificarColisao(x, y, mapa) {
 
 }
 
+function calcularExplosao(linhaBomba, colunaBomba, alcance) {
+    const celulasAtingidas = [];
+
+    //propagação da explosão
+    for (let i = 0; i <= alcance; i++) {
+        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba + i }); //direita
+    }
+
+    for (let i = 1; i <= alcance; i++) {
+        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba - i }); //esquerda
+        celulasAtingidas.push({ linhaAtingida: linhaBomba + i, colunaAtingida: colunaBomba }); // baixo
+        celulasAtingidas.push({ linhaAtingida: linhaBomba - i, colunaAtingida: colunaBomba }); //cima
+    }
+
+    return celulasAtingidas;
+}
+
+console.log(calcularExplosao(5, 6, 3));
 desenharMapa(mapaSorteado);
 desenharJogadores(jogadoresConectados);
 requestAnimationFrame(atualizarMapa);
