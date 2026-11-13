@@ -6,6 +6,10 @@ const LINHAS = 11;
 
 const TAMANHO_CELULA = 48;
 
+//O intervalo entre os payloads enviados para o supabase através do broadcats será de 50 milisegundos
+let ultimoBroadcast = 0;
+const INTERVALO_BROADCAST = 50; //em milisegundos
+
 const mapa1 = Array.from(Array(LINHAS), (_, i) => Array.from(Array(COLUNAS), (_, j) => {
     const ehPar = (i % 2 === 0 && j % 2 === 0);
     const ehBorda = (i === 0 || i === LINHAS - 1 || j === 0 || j === COLUNAS - 1);
@@ -145,9 +149,7 @@ function criaPersonagem(jogador) {
     }
 }
 
-
-
-function desenharJogador(jogadores) {
+function desenharJogadores(jogadores) {
 
     jogadores.forEach((jogador) => {
 
@@ -223,30 +225,56 @@ function atualizarMapa(timestampAtual) {
 
     ultimoTimestamp = timestampAtual;
 
-    let direcaoX = Number(teclas.KeyD) - Number(teclas.KeyA);
-    let direcaoY = Number(teclas.KeyS) - Number(teclas.KeyW);
+    if(jogadorLocal && jogadorLocal.vivo){
 
-    const comprimentoVetor = Math.sqrt(Math.pow(direcaoX, 2) + Math.pow(direcaoY, 2));
+        let direcaoX = Number(teclas.KeyD) - Number(teclas.KeyA);
+        let direcaoY = Number(teclas.KeyS) - Number(teclas.KeyW);
+    
+        const comprimentoVetor = Math.sqrt(Math.pow(direcaoX, 2) + Math.pow(direcaoY, 2));
+    
+        if (comprimentoVetor > 0) {
+            direcaoX = direcaoX / comprimentoVetor;
+            direcaoY = direcaoY / comprimentoVetor;
+        }
+    
+        const proximoX = jogadorLocal.x + (jogadorLocal.velocidade * direcaoX * deltaTime);
+        const proximoY = jogadorLocal.y + (jogadorLocal.velocidade * direcaoY * deltaTime);
+    
+        //verifica colisão horizontal
+        if (!verificarColisao(proximoX, jogadorLocal.y, mapaSorteado)) {
+            jogadorLocal.x = proximoX;
+        }
+    
+        //verifica colisão veritical
+        if (!verificarColisao(jogadorLocal.x, proximoY, mapaSorteado)) {
+            jogadorLocal.y = proximoY;
+        }
 
-    if (comprimentoVetor > 0) {
-        direcaoX = direcaoX / comprimentoVetor;
-        direcaoY = direcaoY / comprimentoVetor;
-    }
 
-    const proximoX = jogador.x + (jogador.velocidade * direcaoX * deltaTime);
-    const proximoY = jogador.y + (jogador.velocidade * direcaoY * deltaTime);
+        //Aqui é enviado o payload para o supabase através do broadcast
+        if(comprimentoVetor > 0 && timestampAtual - ultimoBroadcast >= INTERVALO_BROADCAST && canalSala){
+            ultimoBroadcast = timestampAtual;
 
-    if (!verificarColisao(proximoX, jogador.y, mapaSorteado)) {
-        jogador.x = proximoX;
-    }
-
-    if (!verificarColisao(jogador.x, proximoY, mapaSorteado)) {
-        jogador.y = proximoY;
+            canalSala.send({
+                type: "broadcast",
+                event: "movimento",
+                payload: {
+                    auth_user_id: usuarioAtualId,
+                    x: jogadorLocal.x,
+                    y: jogadorLocal.y
+                }
+            }).then(status => {
+                if(status !== "ok"){
+                    console.warn("Falha ao transmitir evento:", status);
+                }
+            });
+        }
     }
 
     contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
     desenharMapa(mapaSorteado);
-    desenharJogador(jogadores);
+    desenharJogadores(jogadoresConectados);
+
     requestAnimationFrame(atualizarMapa);
 }
 
@@ -296,5 +324,5 @@ function verificarColisao(x, y, mapa) {
 }
 
 desenharMapa(mapaSorteado);
-desenharJogador(jogadores);
+desenharJogadores(jogadoresConectados);
 requestAnimationFrame(atualizarMapa);

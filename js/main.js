@@ -405,6 +405,21 @@ async function conectarAoLobby(codigo, nickname, isHost, spawnSlot) {
     return new Promise(function (resolve, reject) {
         let processando = false;
 
+        canalSala.on(
+            "broadcast",
+            {event: "movimento"},
+            ({payload}) => {
+                const jogador = jogadoresConectados.find(jogador => jogador.id === payload.auth_user_id);
+
+                if(!jogador || jogador.isLocal){
+                    return;
+                }
+
+                jogador.x = payload.x;
+                jogador.y = payload.y;
+            }
+        );
+
         canalSala.subscribe(async function (status, err) {
 
             console.log("Status Realtime:", status);
