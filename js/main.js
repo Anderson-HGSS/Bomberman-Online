@@ -498,8 +498,12 @@ async function conectarAoLobby(codigo, nickname, isHost, spawnSlot) {
                     return;
                 }
 
-                jogador.x = payload.x;
-                jogador.y = payload.y;
+                if(!Number.isFinite(payload.x) || !Number.isFinite(payload.y)){
+                    return;
+                }
+
+                jogador.alvoX = payload.x;
+                jogador.alvoY = payload.y;
             }
         );
 

@@ -138,8 +138,8 @@ function criaPersonagem(jogador) {
     return {
         id: jogador.id,
         nickname: jogador.nickname,
-        x: x,
-        y: y,
+        alvoX: x,
+        alvoY: y,
         velocidade: 300, // em pixels por segundo
         vivo: true,
         cor: CORES_SPAWN[slot],
@@ -156,7 +156,7 @@ function desenharJogadores(jogadores) {
         contexto.beginPath();
 
         //Aqui é desenhado o jogador
-        contexto.arc(jogador.x, jogador.y, 20, 0, Math.PI * 2);
+        contexto.arc(jogador.alvoX, jogador.alvoY, 20, 0, Math.PI * 2);
 
         contexto.fillStyle = jogador.cor;
 
@@ -237,17 +237,17 @@ function atualizarMapa(timestampAtual) {
             direcaoY = direcaoY / comprimentoVetor;
         }
     
-        const proximoX = jogadorLocal.x + (jogadorLocal.velocidade * direcaoX * deltaTime);
-        const proximoY = jogadorLocal.y + (jogadorLocal.velocidade * direcaoY * deltaTime);
+        const proximoX = jogadorLocal.alvoX + (jogadorLocal.velocidade * direcaoX * deltaTime);
+        const proximoY = jogadorLocal.alvoY + (jogadorLocal.velocidade * direcaoY * deltaTime);
     
         //verifica colisão horizontal
-        if (!verificarColisao(proximoX, jogadorLocal.y, mapaSorteado)) {
-            jogadorLocal.x = proximoX;
+        if (!verificarColisao(proximoX, jogadorLocal.alvoY, mapaSorteado)) {
+            jogadorLocal.alvoX = proximoX;
         }
     
         //verifica colisão veritical
-        if (!verificarColisao(jogadorLocal.x, proximoY, mapaSorteado)) {
-            jogadorLocal.y = proximoY;
+        if (!verificarColisao(jogadorLocal.alvoX, proximoY, mapaSorteado)) {
+            jogadorLocal.alvoY = proximoY;
         }
 
 
@@ -260,8 +260,8 @@ function atualizarMapa(timestampAtual) {
                 event: "movimento",
                 payload: {
                     auth_user_id: usuarioAtualId,
-                    x: jogadorLocal.x,
-                    y: jogadorLocal.y
+                    x: jogadorLocal.alvoX,
+                    y: jogadorLocal.alvoY
                 }
             }).then(status => {
                 if(status !== "ok"){
@@ -269,6 +269,15 @@ function atualizarMapa(timestampAtual) {
                 }
             });
         }
+    }
+
+    const intensidadeInterpolacao = 8;
+
+    const alpha = 1 - Math.exp(-intensidadeInterpolacao * deltaTime);
+
+    for (const jogador of jogadoresRemotos){
+        jogador.x += (jogador.alvoX - jogador.x) * alpha;
+        jogador.y += (jogador.alvoY - jogador.y) * alpha;
     }
 
     contexto.clearRect(0, 0, canvasJogo.width, canvasJogo.height);
