@@ -280,6 +280,7 @@ async function sairDoLobbyPorAusenciaDoAnfitriao() {
         exibirMensagem("O anfitrião saiu. A sala foi encerrada e você foi desconectado.", mensagemEntrar);
 
         console.log("Participante removido do lobby.");
+
     } catch (error) {
         console.log("Erro ao encerrar a sala:", error);
 
@@ -339,6 +340,43 @@ function verificaAnfitriaoOnline(jogadores) {
     }, TEMPO_TOLERANCIA_ANFITRIAO);
 }
 
+async function encerrarSalaComoAnfitriao(){
+    if(!souAnfitriao || !salaAtualId){
+        return;
+    }
+
+    const salaIdParaEncerrar = salaAtualId;
+
+    try {
+        const {data, error} = await supabaseClient.rpc(
+            "encerrar_sala_anfitriao", {p_sala_id: salaIdParaEncerrar}
+        );
+
+        if(error){
+            throw error;
+        }
+
+        const status = await canalSala.send({
+            type: "broadcast",
+            event: "sala_encerrada",
+            payload: {
+                sala_id: salaIdParaEncerrar
+            }
+        });
+
+        if(status !== "ok"){
+            console.warn("Não foi possível notificar todos os jogadores:", status);
+        }
+
+        await limparLobbyLocal("você encerrou a sala.");
+
+        console.log("Sala encerrada pelo anfitrião.")
+
+    }catch(error){
+        console.log("Erro ao encerrar a sala:", error)
+    }
+}
+
 function atualizarListaJogadores() {
     //presenceState retorna os dados dos clientes conectados no canal
     const estado = canalSala.presenceState();
@@ -380,6 +418,41 @@ function atualizarListaJogadores() {
     });
 }
 
+async function limparLobbyLocal(mensagem) {
+    //interrompe temporizadores
+    if (temporizadorAnfitriao !== null){
+        clearTimeout(temporizadorAnfitriao);
+        temporizadorAnfitriao = null;
+    }
+
+    pararHeartbeatAnfitriao();
+
+    //remove o canal realtime
+    const canalAnterior = canalSala;
+    canalSala = null;
+
+    if(canalAnterior){
+        await supabaseClient.removeChannel(canalAnterior);
+    }
+
+    //Sessão de limpeza
+    listaJogadores.replaceChildren();
+    contadorJogadores.textContent = "0";
+    areaLobby.hidden = true;
+
+    salaAtualId = null;
+    jogadorAtualId = null;
+    souAnfitriao = false;
+
+    jogadoresConectados = [];
+    jogadoresRemotos = [];
+    jogadorLocal = null;
+
+    exibirMensagem(mensagem, mensagemEntrar);
+
+    console.log("Lobby local encerrado.")
+}
+
 async function conectarAoLobby(codigo, nickname, isHost, spawnSlot) {
 
     pararHeartbeatAnfitriao();
@@ -404,6 +477,16 @@ async function conectarAoLobby(codigo, nickname, isHost, spawnSlot) {
 
     return new Promise(function (resolve, reject) {
         let processando = false;
+
+        canalSala.on(
+            "broadcast",
+            {event: "sala_encerrada"},
+            async () => {
+                console.log("O anfitrião encerrou a sala.");
+
+                await limparLobbyLocal("O anfitrião encerrou a sala, você foi desconectado.");
+            }
+        );
 
         canalSala.on(
             "broadcast",
