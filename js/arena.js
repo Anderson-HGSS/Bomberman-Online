@@ -13,6 +13,9 @@ const INTERVALO_BROADCAST = 50; //em milisegundos
 const bombas = [];
 let idProximaBomba = 0;
 
+const CAPACIDADE_BOMBAS_INICIAL = 2;
+const ALCANCE_INICIAL = 3;
+
 const mapa1 = Array.from(Array(LINHAS), (_, i) => Array.from(Array(COLUNAS), (_, j) => {
     const ehPar = (i % 2 === 0 && j % 2 === 0);
     const ehBorda = (i === 0 || i === LINHAS - 1 || j === 0 || j === COLUNAS - 1);
@@ -428,13 +431,6 @@ function destruirBlocos(celulasAtingidas, mapa) {
     }
 }
 
-const jogadoresTeste = [
-    { nickname: "A", x: 72, y: 72, vivo: true },   // célula (1, 1)
-    { nickname: "B", x: 72, y: 168, vivo: true },  // célula (3, 1)
-    { nickname: "C", x: 72, y: 264, vivo: true },  // célula (5, 1)
-    { nickname: "D", x: 72, y: 120, vivo: false }  // célula (2, 1), morto
-];
-
 function detectarJogadoresAtingidos(celulasAtingidas, jogadores) {
     const jogadoresAtingidos = [];
 
@@ -464,15 +460,16 @@ function criarBomba(linha, coluna, alcance, donoId) {
         linha: linha,
         coluna: coluna,
         alcance: alcance,
-        donoId: donoId
+        donoId: donoId,
+        jogadoresDentro: [donoId]
     }
 
 }
 
-function detectarBombasAtingidas(celulasAtingidas, bombas, idBombaOrigem){
+function detectarBombasAtingidas(celulasAtingidas, bombas, idBombaOrigem) {
     const bombasAtingidas = [];
 
-    for(let i = 0; i < bombas.length; i ++){
+    for (let i = 0; i < bombas.length; i++) {
         if (bombas[i].idBomba !== idBombaOrigem && (celulasAtingidas.some((posicao) => posicao.linhaAtingida === bombas[i].linha && posicao.colunaAtingida === bombas[i].coluna))) {
             bombasAtingidas.push(bombas[i]);
         }
@@ -493,9 +490,9 @@ function calcularReacaoEmCadeia(bombaInicial, bombas, mapa) {
         celulasAtingidas.push(...novasCelulas);
 
         const bombasAtingidas = detectarBombasAtingidas(novasCelulas, bombas, bombaAtual.idBomba)
-        
-        for(let i = 0; i < bombasAtingidas.length; i++){
-            if(!bombasExplodidas.some((bomba) => bomba.idBomba === bombasAtingidas[i].idBomba)){
+
+        for (let i = 0; i < bombasAtingidas.length; i++) {
+            if (!bombasExplodidas.some((bomba) => bomba.idBomba === bombasAtingidas[i].idBomba)) {
                 bombasExplodidas.push(bombasAtingidas[i]);
                 fila.push(bombasAtingidas[i]);
             }
@@ -503,6 +500,19 @@ function calcularReacaoEmCadeia(bombaInicial, bombas, mapa) {
     }
 
     return { bombasExplodidas, celulasAtingidas };
+}
+
+function colocarBomba(jogador, bombas) {
+
+    const coluna = Math.floor(jogador.x / TAMANHO_CELULA);
+    const linha = Math.floor(jogador.y / TAMANHO_CELULA);
+    const bombasJogador = bombas.filter((bomba) => bomba.donoId === jogador.id);
+
+    if (!jogador.vivo || bombasJogador.length >= CAPACIDADE_BOMBAS_INICIAL || bombas.some((bomba) => bomba.linha === linha && bomba.coluna === coluna)) {
+        return null;
+    }
+
+    return criarBomba(linha, coluna, ALCANCE_INICIAL, jogador.id);
 }
 
 desenharMapa(mapaSorteado);
