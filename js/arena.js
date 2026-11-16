@@ -10,6 +10,9 @@ const TAMANHO_CELULA = 48;
 let ultimoBroadcast = 0;
 const INTERVALO_BROADCAST = 50; //em milisegundos
 
+const bombas = [];
+let idProximaBomba = 0;
+
 const mapa1 = Array.from(Array(LINHAS), (_, i) => Array.from(Array(COLUNAS), (_, j) => {
     const ehPar = (i % 2 === 0 && j % 2 === 0);
     const ehBorda = (i === 0 || i === LINHAS - 1 || j === 0 || j === COLUNAS - 1);
@@ -334,24 +337,174 @@ function verificarColisao(x, y, mapa) {
 
 }
 
-function calcularExplosao(linhaBomba, colunaBomba, alcance) {
-    const celulasAtingidas = [];
+function dentroDoMapa(linha, coluna) {
+    const dentroDoMapa = linha >= 0 && coluna >= 0 && linha < LINHAS && coluna < COLUNAS;
 
-    //propagação da explosão
-    for (let i = 0; i <= alcance; i++) {
-        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba + i }); //direita
+    if (dentroDoMapa) {
+        return true;
     }
 
+    return false;
+}
+
+function calcularExplosao(linhaBomba, colunaBomba, alcance, mapa) {
+    const celulasAtingidas = [];
+
+    //propagação da explosão para a direita
+    for (let i = 0; i <= alcance; i++) {
+        if (!dentroDoMapa(linhaBomba, colunaBomba + i)) {
+            break;
+        }
+
+        if (mapa[linhaBomba][colunaBomba + i] === 1) {
+            break;
+        }
+
+        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba + i });
+
+        if (mapa[linhaBomba][colunaBomba + i] === 2) {
+            break;
+        }
+    }
+
+    //propagação da explosão para a cima
     for (let i = 1; i <= alcance; i++) {
-        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba - i }); //esquerda
-        celulasAtingidas.push({ linhaAtingida: linhaBomba + i, colunaAtingida: colunaBomba }); // baixo
-        celulasAtingidas.push({ linhaAtingida: linhaBomba - i, colunaAtingida: colunaBomba }); //cima
+        if (!dentroDoMapa(linhaBomba - i, colunaBomba)) {
+            break;
+        }
+
+        if (mapa[linhaBomba - i][colunaBomba] === 1) {
+            break;
+        }
+        celulasAtingidas.push({ linhaAtingida: linhaBomba - i, colunaAtingida: colunaBomba });
+
+        if (mapa[linhaBomba - i][colunaBomba] === 2) {
+            break;
+        }
+    }
+
+    //propagação da explosão para a baixo
+    for (let i = 1; i <= alcance; i++) {
+        if (!dentroDoMapa(linhaBomba + i, colunaBomba)) {
+            break;
+        }
+
+        if (mapa[linhaBomba + i][colunaBomba] === 1) {
+            break;
+        }
+        celulasAtingidas.push({ linhaAtingida: linhaBomba + i, colunaAtingida: colunaBomba });
+
+        if (mapa[linhaBomba + i][colunaBomba] === 2) {
+            break;
+        }
+    }
+
+    //propagação da explosão para a esquerda
+    for (let i = 1; i <= alcance; i++) {
+        if (!dentroDoMapa(linhaBomba, colunaBomba - i)) {
+            break;
+        }
+
+        if (mapa[linhaBomba][colunaBomba - i] === 1) {
+            break;
+        }
+        celulasAtingidas.push({ linhaAtingida: linhaBomba, colunaAtingida: colunaBomba - i });
+
+        if (mapa[linhaBomba][colunaBomba - i] === 2) {
+            break;
+        }
     }
 
     return celulasAtingidas;
 }
 
-console.log(calcularExplosao(5, 6, 3));
+function destruirBlocos(celulasAtingidas, mapa) {
+
+    for (let i = 0; i < celulasAtingidas.length; i++) {
+
+        if (mapa[celulasAtingidas[i].linhaAtingida][celulasAtingidas[i].colunaAtingida] === 2) {
+            mapa[celulasAtingidas[i].linhaAtingida][celulasAtingidas[i].colunaAtingida] = 0;
+        }
+    }
+}
+
+const jogadoresTeste = [
+    { nickname: "A", x: 72, y: 72, vivo: true },   // célula (1, 1)
+    { nickname: "B", x: 72, y: 168, vivo: true },  // célula (3, 1)
+    { nickname: "C", x: 72, y: 264, vivo: true },  // célula (5, 1)
+    { nickname: "D", x: 72, y: 120, vivo: false }  // célula (2, 1), morto
+];
+
+function detectarJogadoresAtingidos(celulasAtingidas, jogadores) {
+    const jogadoresAtingidos = [];
+
+    for (let i = 0; i < jogadores.length; i++) {
+
+        if (!jogadores[i].vivo) {
+            continue; // Pula para o próximo jogador
+        }
+
+        const coluna = Math.floor(jogadores[i].x / TAMANHO_CELULA);
+        const linha = Math.floor(jogadores[i].y / TAMANHO_CELULA);
+
+        if (celulasAtingidas.some((posicao) => posicao.linhaAtingida === linha && posicao.colunaAtingida === coluna)) {
+            jogadoresAtingidos.push(jogadores[i]);
+        }
+    }
+
+    return jogadoresAtingidos;
+}
+
+function criarBomba(linha, coluna, alcance, donoId) {
+
+    idProximaBomba += 1;
+
+    return {
+        idBomba: idProximaBomba,
+        linha: linha,
+        coluna: coluna,
+        alcance: alcance,
+        donoId: donoId
+    }
+
+}
+
+function detectarBombasAtingidas(celulasAtingidas, bombas, idBombaOrigem){
+    const bombasAtingidas = [];
+
+    for(let i = 0; i < bombas.length; i ++){
+        if (bombas[i].idBomba !== idBombaOrigem && (celulasAtingidas.some((posicao) => posicao.linhaAtingida === bombas[i].linha && posicao.colunaAtingida === bombas[i].coluna))) {
+            bombasAtingidas.push(bombas[i]);
+        }
+    }
+
+    return bombasAtingidas;
+}
+
+function calcularReacaoEmCadeia(bombaInicial, bombas, mapa) {
+    const fila = [bombaInicial];
+    const bombasExplodidas = [bombaInicial];
+    const celulasAtingidas = [];
+
+    while (fila.length > 0) {
+        const bombaAtual = fila.shift();
+
+        const novasCelulas = calcularExplosao(bombaAtual.linha, bombaAtual.coluna, bombaAtual.alcance, mapa);
+        celulasAtingidas.push(...novasCelulas);
+
+        const bombasAtingidas = detectarBombasAtingidas(novasCelulas, bombas, bombaAtual.idBomba)
+        
+        for(let i = 0; i < bombasAtingidas.length; i++){
+            if(!bombasExplodidas.some((bomba) => bomba.idBomba === bombasAtingidas[i].idBomba)){
+                bombasExplodidas.push(bombasAtingidas[i]);
+                fila.push(bombasAtingidas[i]);
+            }
+        }
+    }
+
+    return { bombasExplodidas, celulasAtingidas };
+}
+
 desenharMapa(mapaSorteado);
 desenharJogadores(jogadoresConectados);
 requestAnimationFrame(atualizarMapa);
